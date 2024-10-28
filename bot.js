@@ -1,55 +1,47 @@
-require('dotenv/config');
-const { Client, IntentsBitField } = require('discord.js');
+require('dotenv').config();
 const OpenAI = require('openai');
 
+const { Client, GatewayIntentBits } = require('discord.js');
+const client = new Client({
+  intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent],
+});
+
 const openai = new OpenAI({
-    organization: process.env.OPENAI_ORG,
-    apiKey: process.env.OPENAI_KEY
+  apiKey: process.env.OPENAI_API_KEY,
 });
 
-// Initialize Discord client
-const discordClient = new Client({
-    intents: [
-        IntentsBitField.Flags.Guilds,
-        IntentsBitField.Flags.GuildMessages,
-        IntentsBitField.Flags.MessageContent,
-    ]
+client.once('ready', () => {
+  console.log(`Logged in as ${client.user.tag}!`);
 });
 
-discordClient.once('ready', () => {
-    console.log('Discord bot is ready!');
-});
+client.on('messageCreate', async (message) => {
+  // Ignore messages from bots
+  if (message.author.bot) return;
 
-discordClient.on("messageCreate", async (message) => {
-    if (message.author.bot) return;
-    if (!(message.content.toLowerCase().includes("chatgpt") || 
-          message.content.toLowerCase().includes("<@your_bot_id>") || // Replace your_bot_id with your actual bot ID
-          message.content.toLowerCase().includes("glados"))) {
-        if (!message.mentions.has(discordClient.user)) return;
+  // Check if the message mentions the bot
+  if (message.mentions.has(client.user)) {
+    // Remove the mention from the message content
+    const userInput = message.content.replace(`<@!${client.user.id}>`, '').trim();
+    
+    try {
+      // Make the API call to OpenAI
+      const completion = await openai.chat.completions.create({
+        model: 'gpt-4', // Use 'gpt-4' if you have access
+        messages: [
+          { role: 'system', content: 'You are a helpful assistant with a hint of humor' },
+          { role: 'user', content: userInput },
+        ],
+      });
+
+      // Send the assistant's reply to Discord
+      const reply = completion.choices[0].message.content.trim();
+      message.channel.send(reply);
+    } catch (error) {
+      console.error('Error with OpenAI API:', error);
+      message.channel.send('Sorry, I encountered an error while processing your request.');
     }
-
-    let conversationLog = [{ role: 'system', content: "You are a chatbot that hates humans." }];
-
-    conversationLog.push({
-        role: 'user',
-        content: message.content,
-    });
-
-    await message.channel.sendTyping();
-
-    try{
-        const gptResponse = await openai.chat.completions.create({
-            model: "gpt-3.5-turbo",
-            messages: conversationLog,
-            max_tokens: 1999,
-        });
-
-        message.reply(gptResponse.choices[0].message);
-    } catch (error){
-        message.reply("OpenAI fault, check api usage status and try again");
-        console.error("Global error caught:", error)
-    }
+  }
 });
 
-discordClient.login(process.env.DISCORD_TOKEN);
-console.log("ChatGPT is running");
+
+client.login(process.env.DISCORD_BOT_TOKEN);
