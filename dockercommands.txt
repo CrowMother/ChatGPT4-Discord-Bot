@@ -1,0 +1,2 @@
+docker build -t crowmommy/gpt-bot:<version> .
+docker push crowmommy/gpt-bot:<version> 

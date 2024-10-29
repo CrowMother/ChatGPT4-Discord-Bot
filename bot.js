@@ -17,6 +17,10 @@ client.once('ready', () => {
 client.on('messageCreate', async (message) => {
   // Ignore messages from bots
   if (message.author.bot) return;
+  //ignore @everyone
+  if (message.mentions.everyone) return;
+  //ignore @here
+  if (message.mentions.here) return;
 
   // Check if the message mentions the bot
   if (message.mentions.has(client.user)) {
